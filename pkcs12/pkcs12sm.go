@@ -8,9 +8,10 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"errors"
-	"fmt"
+	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
 )
 
 type smPdu struct {
@@ -54,9 +55,6 @@ func Decode(smData []byte, password string) (privateKey *sm2.PrivateKey, certifi
 		PublicKey: *pub,
 		D:         new(big.Int).SetBytes(dBytes),
 	}
-
-	fmt.Println(cer.Issuer)
-
 	return priv, cer, nil
 }
 
@@ -94,11 +92,28 @@ func DecryptSm2Key(password string, encryptedData []byte) []byte {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		d := new(big.Int)
-		d.SetBytes(out)
-		fmt.Println(d)
 		return out
 	}
 	return nil
+}
+
+func ReadPrivateKeyFromSMFile(file, password string) (*sm2.PrivateKey, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	d, err := base64.StdEncoding.DecodeString(string(data))
+	if err != nil {
+		return nil, err
+	}
+	privateKey, _, err := Decode(d, password)
+	if err != nil {
+		return nil, err
+	}
+	return privateKey, nil
 }
